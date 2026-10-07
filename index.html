@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Fuga do Esqueleto Brayan!</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: #0d0814;
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            max-width: 900px;
+            max-height: 700px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: #000;
+            box-shadow: 0 0 30px rgba(138, 43, 226, 0.4), 0 0 15px rgba(255, 0, 0, 0.3);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            background-color: #120b1f;
+        }
+
+        /* Overlay UI Rules */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 5, 18, 0.88);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            backdrop-filter: blur(6px);
+            transition: opacity 0.3s ease;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        h1 {
+            font-size: 2.8rem;
+            color: #e02443;
+            text-shadow: 0 0 12px #ff0055, 0 0 25px #8000ff;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        p {
+            font-size: 1.1rem;
+            color: #d1c4e9;
+            max-width: 550px;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #ff0055, #7928ca);
+            color: #ffffff;
+            border: none;
+            padding: 14px 32px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(230, 0, 118, 0.5);
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 10px;
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(230, 0, 118, 0.8);
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        /* Heads Up Display (HUD) */
+        #hud {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            right: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 5;
+            pointer-events: none;
+            font-family: monospace;
+            font-size: 1.1rem;
+            font-weight: bold;
+        }
+
+        .hud-card {
+            background: rgba(15, 10, 25, 0.75);
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stamina-bar-bg {
+            width: 100px;
+            height: 12px;
+            background: #2a1b3d;
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .stamina-bar-fill {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #00f2fe, #4facfe);
+            transition: width 0.1s linear;
+        }
+
+        /* Controls Overlay for Mobile */
+        #touch-controls {
+            position: absolute;
+            bottom: 15px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 20px;
+            z-index: 6;
+            pointer-events: none;
+        }
+
+        .dpad {
+            position: relative;
+            width: 130px;
+            height: 130px;
+            pointer-events: auto;
+        }
+
+        .dpad-btn {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            width: 42px;
+            height: 42px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: #fff;
+            backdrop-filter: blur(4px);
+            touch-action: manipulation;
+        }
+
+        .dpad-btn:active {
+            background: rgba(255, 0, 85, 0.5);
+        }
+
+        .dpad-up { top: 0; left: 44px; }
+        .dpad-down { bottom: 0; left: 44px; }
+        .dpad-left { top: 44px; left: 0; }
+        .dpad-right { top: 44px; right: 0; }
+
+        .sprint-btn {
+            pointer-events: auto;
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: rgba(255, 0, 85, 0.35);
+            border: 2px solid rgba(255, 0, 85, 0.6);
+            color: white;
+            font-size: 0.9rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            align-self: flex-end;
+            backdrop-filter: blur(4px);
+            touch-action: manipulation;
+        }
+
+        .sprint-btn:active {
+            background: rgba(255, 0, 85, 0.8);
+            transform: scale(0.95);
+        }
+
+        /* Brayan Jumpscare Overlay */
+        #jumpscare-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            animation: flashRed 0.15s infinite alternate;
+        }
+
+        @keyframes flashRed {
+            0% { background-color: #1a0000; }
+            100% { background-color: #550000; }
+        }
+
+        .jumpscare-face {
+            font-size: 110px;
+            animation: shake 0.08s infinite alternate, grow 0.3s forwards ease-out;
+        }
+
+        @keyframes shake {
+            0% { transform: translate(-8px, -5px) rotate(-3deg); }
+            100% { transform: translate(8px, 5px) rotate(3deg); }
+        }
+
+        @keyframes grow {
+            0% { transform: scale(0.5); }
+            100% { transform: scale(1.4); }
+        }
+
+        .instructions {
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 10px;
+            padding: 12px;
+            margin: 10px 0;
+            font-size: 0.95rem;
+            text-align: left;
+        }
+
+        .instructions ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+
+        .instructions li {
+            margin: 6px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        @media (min-width: 768px) {
+            #touch-controls {
+                display: none; /* Oculta controles touch em telas grandes se desejado, mas mantido pra testes */
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <!-- HUD -->
+    <div id="hud" class="hidden">
+        <div class="hud-card">
+            <span>🔑 Chaves:</span>
+            <span id="keys-count" style="color: #ffd700;">0/0</span>
+        </div>
+        <div class="hud-card">
+            <span>⚡ Corrida:</span>
+            <div class="stamina-bar-bg">
+                <div id="stamina-fill" class="stamina-bar-fill"></div>
+            </div>
+        </div>
+        <div class="hud-card">
+            <span>🏰 Nível:</span>
+            <span id="level-display" style="color: #00ffcc;">1</span>
+        </div>
+    </div>
+
+    <!-- Canvas principal do jogo -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Controles Touch para Mobile -->
+    <div id="touch-controls">
+        <div class="dpad">
+            <div class="dpad-btn dpad-up" id="btn-up">▲</div>
+            <div class="dpad-btn dpad-down" id="btn-down">▼</div>
+            <div class="dpad-btn dpad-left" id="btn-left">◄</div>
+            <div class="dpad-btn dpad-right" id="btn-right">►</div>
+        </div>
+        <div class="sprint-btn" id="btn-sprint">CORRER</div>
+    </div>
+
+    <!-- Overlay: Menu Inicial -->
+    <div id="menu-overlay" class="overlay">
+        <h1>Fuga do Brayan 💀</h1>
+        <p>Você foi trancado no calabouço sombrio! O terrível esqueleto <strong>Brayan</strong> está à sua procura. Encontre todas as chaves e alcance o portal de saída antes que ele te encontre!</p>
+        
+        <div class="instructions">
+            <ul>
+                <li>🔑 <strong>Chaves:</strong> Colete todas para abrir o Portal Amarelo.</li>
+                <li>🧪 <strong>Poção Roxa:</strong> Aumenta sua velocidade temporariamente.</li>
+                <li>🕯️ <strong>Vela:</strong> Expande a visão da sua lanterna na escuridão.</li>
+                <li>🕹️ <strong>Controles:</strong> WASD / Setas + [SHIFT] para dar Sprint.</li>
+            </ul>
+        </div>
+
+        <button class="btn" id="start-btn">Iniciar Fuga!</button>
+    </div>
+
+    <!-- Overlay: Vitória de Nível / Final -->
+    <div id="win-overlay" class="overlay hidden">
+        <h1 style="color: #00ffcc; text-shadow: 0 0 15px #00ffcc;">VOCÊ ESCAPOU! 🎉</h1>
+        <p id="win-message">Você deixou o Brayan comendo poeira no calabouço!</p>
+        <button class="btn" id="next-level-btn">Próxima Fase ➔</button>
+    </div>
+
+    <!-- Overlay: Game Over -->
+    <div id="gameover-overlay" class="overlay hidden">
+        <h1 style="color: #ff0055;">BRAYAN TE PEGOU! 💀</h1>
+        <p style="font-size: 1.3rem; font-style: italic; color: #ff99bb;" id="brayan-catch-quote">"Achei você! Eu só queria um abraço!"</p>
+        <p>O esqueleto encurralou você na escuridão...</p>
+        <button class="btn" id="retry-btn">Tentar Novamente</button>
+    </div>
+
+    <!-- Overlay: Jumpscare Animado -->
+    <div id="jumpscare-overlay" class="hidden">
+        <div class="jumpscare-face">💀</div>
+        <h2 style="color: #ff0055; font-size: 2rem; margin-top: 15px; font-family: monospace;">BRAYAN TE PEGOOU!</h2>
+    </div>
+</div>
+
+<script>
+// Contexto de Áudio Sintético para Efeitos Sonoros
+class SoundSystem {
+    constructor() {
+        this.ctx = null;
+    }
+
+    init() {
+        if (!this.ctx) {
+            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+    }
+
+    playKeyCollect() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(587.33, now); // D5
+        osc.frequency.exponentialRampToValueAtTime(880, now + 0.15); // A5
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.2);
+    }
+
+    playPotionCollect() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(300, now);
+        osc.frequency.linearRampToValueAtTime(600, now + 0.1);
+        osc.frequency.linearRampToValueAtTime(900, now + 0.2);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.25);
+    }
+
+    playBrayanLaugh() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        for (let i = 0; i < 3; i++) {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sawtooth';
+            const startTime = now + (i * 0.12);
+            osc.frequency.setValueAtTime(150 - (i * 20), startTime);
+            osc.frequency.linearRampToValueAtTime(90, startTime + 0.1);
+            gain.gain.setValueAtTime(0.3, startTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.11);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(startTime);
+            osc.stop(startTime + 0.12);
+        }
+    }
+
+    playJumpscare() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        
+        // Ruído/Scream
+        const bufferSize = this.ctx.sampleRate * 0.6;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+        }
+
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.8, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
+
+        noise.connect(gain);
+        gain.connect(this.ctx.destination);
+        noise.start(now);
+    }
+
+    playWinSound() {
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const notes = [261.63, 329.63, 392.00, 523.25]; // C, E, G, C
+        notes.forEach((freq, i) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.2, now + i * 0.1);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.1 + 0.25);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now + i * 0.1);
+            osc.stop(now + i * 0.1 + 0.25);
+        });
+    }
+}
+
+const audio = new SoundSystem();
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// Ajuste dinâmico de resolução do Canvas
+function resizeCanvas() {
+    const container = document.getElementById('game-container');
+    canvas.width = container.clientWidth;
+    canvas.height = container.clientHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// Estado do Jogo
+let gameState = 'MENU'; // MENU, PLAYING, JUMPSCARE, GAMEOVER, WIN
+let currentLevel = 1;
+
+// Configuração do Grids/Labirinto
+const GRID_COLS = 19;
+const GRID_ROWS = 15;
+let tileSize = 32;
+let grid = [];
+
+// Falas Engraçadas/Dramáticas do Esqueleto Brayan
+const brayanQuotes = [
+    "BRAYAN ESTÁ CHEGANDO!",
+    "NÃO ADIANTA CORRER!",
+    "EU SÓ QUERO UM ABRAÇO!",
+    "NÃO FUJA DE MIM!",
+    "SUA CARNE PARECE TÃO MACIA!",
+    "ME ESPERA, EU SÓ TENHO OSSOS!",
+    "ACHOU QUE PODIA ESCAPAR DE MIM?",
+    "ONDE VOCÊ VAI COM TANTA APRESSA?"
+];
+
+let currentQuote = "";
+let quoteTimer = 0;
+
+// Definição das Entidades
+let player = {
+    x: 0,
+    y: 0,
+    radius: 12,
+    speed: 3.2,
+    baseSpeed: 3.2,
+    stamina: 100,
+    maxStamina: 100,
+    isSprinting: false,
+    keysCollected: 0,
+    lightRadius: 130,
+    speedBoostTimer: 0
+};
+
+let brayan = {
+    x: 0,
+    y: 0,
+    radius: 14,
+    speed: 2.1,
+    baseSpeed: 2.1,
+    floatOffset: 0
+};
+
+let exitDoor = { x: 0, y: 0, open: false };
+let keys = [];
+let potions = [];
+let candles = [];
+
+// Gerador Procedural de Labirinto (Algoritmo Prim/DFS Modificado)
+function generateMaze(cols, rows) {
+    // Inicializa grade com paredes (1 = parede, 0 = caminho)
+    let map = Array(rows).fill(null).map(() => Array(cols).fill(1));
+
+    function walk(r, c) {
+        map[r][c] = 0;
+        const dirs = [
+            [0, -2], [0, 2], [-2, 0], [2, 0]
+        ].sort(() => Math.random() - 0.5);
+
+        for (let [dr, dc] of dirs) {
+            let nr = r + dr;
+            let nc = c + dc;
+            if (nr > 0 && nr < rows - 1 && nc > 0 && nc < cols - 1 && map[nr][nc] === 1) {
+                map[r + dr / 2][c + dc / 2] = 0;
+                walk(nr, nc);
+            }
+        }
+    }
+
+    walk(1, 1);
+
+    // Abre caminhos adicionais aleatórios para evitar um único caminho chato
+    for (let r = 1; r < rows - 1; r++) {
+        for (let c = 1; c < cols - 1; c++) {
+            if (map[r][c] === 1 && Math.random() < 0.12) {
+                map[r][c] = 0;
+            }
+        }
+    }
+
+    return map;
+}
+
+// Inicializa ou Reseta o Nível
+function initLevel(level) {
+    tileSize = Math.min(canvas.width / GRID_COLS, canvas.height / GRID_ROWS);
+    grid = generateMaze(GRID_COLS, GRID_ROWS);
+
+    // Encontra locais válidos livres para posicionar entidades
+    let freeTiles = [];
+    for (let r = 1; r < GRID_ROWS - 1; r++) {
+        for (let c = 1; c < GRID_COLS - 1; c++) {
+            if (grid[r][c] === 0) {
+                freeTiles.push({ r, c });
+            }
+        }
+    }
+
+    // Embaralha locais livres
+    freeTiles.sort(() => Math.random() - 0.5);
+
+    // Jogador começa no canto superior esquerdo
+    let pTile = freeTiles.pop();
+    player.x = (pTile.c + 0.5) * tileSize;
+    player.y = (pTile.r + 0.5) * tileSize;
+    player.stamina = player.maxStamina;
+    player.keysCollected = 0;
+    player.lightRadius = 140;
+    player.speedBoostTimer = 0;
+
+    // Porta de saída no canto mais distante
+    let doorTile = freeTiles.pop();
+    exitDoor.x = (doorTile.c + 0.5) * tileSize;
+    exitDoor.y = (doorTile.r + 0.5) * tileSize;
+    exitDoor.open = false;
+
+    // Brayan surge distante do jogador
+    let brayanTile = freeTiles.pop();
+    brayan.x = (brayanTile.c + 0.5) * tileSize;
+    brayan.y = (brayanTile.r + 0.5) * tileSize;
+    // Dificuldade crescente: Brayan fica mais rápido a cada nível
+    brayan.baseSpeed = 1.9 + (level * 0.3);
+    brayan.speed = brayan.baseSpeed;
+
+    // Itens: Chaves (de 2 a 4 dependendo da fase)
+    const requiredKeysCount = Math.min(2 + Math.floor(level / 2), 5);
+    keys = [];
+    for (let i = 0; i < requiredKeysCount; i++) {
+        if (freeTiles.length > 0) {
+            let tile = freeTiles.pop();
+            keys.push({
+                x: (tile.c + 0.5) * tileSize,
+                y: (tile.r + 0.5) * tileSize,
+                collected: false
+            });
+        }
+    }
+
+    // Poções de Velocidade
+    potions = [];
+    if (freeTiles.length > 0) {
+        let tile = freeTiles.pop();
+        potions.push({
+            x: (tile.c + 0.5) * tileSize,
+            y: (tile.r + 0.5) * tileSize,
+            collected: false
+        });
+    }
+
+    // Velas (Iluminação)
+    candles = [];
+    if (freeTiles.length > 0) {
+        let tile = freeTiles.pop();
+        candles.push({
+            x: (tile.c + 0.5) * tileSize,
+            y: (tile.r + 0.5) * tileSize,
+            collected: false
+        });
+    }
+
+    updateHUD();
+}
+
+const keysState = {};
+
+window.addEventListener('keydown', (e) => {
+    keysState[e.code] = true;
+    audio.init(); // Ativa áudio após gesto do usuário
+});
+
+window.addEventListener('keyup', (e) => {
+    keysState[e.code] = false;
+});
+
+// Suporte a Controles Touch na Tela
+function setupTouchControls() {
+    const bindTouch = (elemId, keyCode) => {
+        const btn = document.getElementById(elemId);
+        if (!btn) return;
+        
+        btn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            keysState[keyCode] = true;
+            audio.init();
+        });
+        
+        btn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            keysState[keyCode] = false;
+        });
+    };
+
+    bindTouch('btn-up', 'KeyW');
+    bindTouch('btn-down', 'KeyS');
+    bindTouch('btn-left', 'KeyA');
+    bindTouch('btn-right', 'KeyD');
+    bindTouch('btn-sprint', 'ShiftLeft');
+}
+setupTouchControls();
+
+function isWall(x, y, radius) {
+    // Checa pontos na borda do círculo da entidade para colisão suave
+    const points = [
+        { x: x - radius, y: y - radius },
+        { x: x + radius, y: y - radius },
+        { x: x - radius, y: y + radius },
+        { x: x + radius, y: y + radius },
+        { x, y }
+    ];
+
+    for (let p of points) {
+        let c = Math.floor(p.x / tileSize);
+        let r = Math.floor(p.y / tileSize);
+
+        if (r < 0 || r >= GRID_ROWS || c < 0 || c >= GRID_COLS) return true;
+        if (grid[r][c] === 1) return true;
+    }
+    return false;
+}
+
+function updatePlayer() {
+    let dx = 0;
+    let dy = 0;
+
+    if (keysState['KeyW'] || keysState['ArrowUp']) dy -= 1;
+    if (keysState['KeyS'] || keysState['ArrowDown']) dy += 1;
+    if (keysState['KeyA'] || keysState['ArrowLeft']) dx -= 1;
+    if (keysState['KeyD'] || keysState['ArrowRight']) dx += 1;
+
+    // Normalização do vetor de movimento
+    if (dx !== 0 && dy !== 0) {
+        dx *= 0.7071;
+        dy *= 0.7071;
+    }
+
+    // Gestão de Sprint e Stamina
+    const wantSprint = (keysState['ShiftLeft'] || keysState['ShiftRight']) && (dx !== 0 || dy !== 0);
+    if (wantSprint && player.stamina > 0) {
+        player.isSprinting = true;
+        player.stamina = Math.max(0, player.stamina - 0.7);
+    } else {
+        player.isSprinting = false;
+        if (player.stamina < player.maxStamina) {
+            player.stamina = Math.min(player.maxStamina, player.stamina + 0.3);
+        }
+    }
+
+    // Boost temporário de poção
+    let currentSpeed = player.baseSpeed;
+    if (player.speedBoostTimer > 0) {
+        currentSpeed *= 1.45;
+        player.speedBoostTimer--;
+    }
+    if (player.isSprinting) {
+        currentSpeed *= 1.5;
+    }
+
+    // Movimento Eixo X
+    let nextX = player.x + dx * currentSpeed;
+    if (!isWall(nextX, player.y, player.radius)) {
+        player.x = nextX;
+    }
+
+    // Movimento Eixo Y
+    let nextY = player.y + dy * currentSpeed;
+    if (!isWall(player.x, nextY, player.radius)) {
+        player.y = nextY;
+    }
+
+    // Coleta de Itens
+    // 1. Chaves
+    keys.forEach(key => {
+        if (!key.collected) {
+            let dist = Math.hypot(player.x - key.x, player.y - key.y);
+            if (dist < player.radius + 10) {
+                key.collected = true;
+                player.keysCollected++;
+                audio.playKeyCollect();
+                updateHUD();
+
+                if (player.keysCollected >= keys.length) {
+                    exitDoor.open = true;
+                }
+            }
+        }
+    });
+
+    // 2. Poções
+    potions.forEach(potion => {
+        if (!potion.collected) {
+            let dist = Math.hypot(player.x - potion.x, player.y - potion.y);
+            if (dist < player.radius + 10) {
+                potion.collected = true;
+                player.speedBoostTimer = 300; // 5 segundos em 60fps
+                audio.playPotionCollect();
+            }
+        }
+    });
+
+    // 3. Velas
+    candles.forEach(candle => {
+        if (!candle.collected) {
+            let dist = Math.hypot(player.x - candle.x, player.y - candle.y);
+            if (dist < player.radius + 10) {
+                candle.collected = true;
+                player.lightRadius += 50;
+                audio.playPotionCollect();
+            }
+        }
+    });
+
+    // Checar Saída do Nível
+    if (exitDoor.open) {
+        let distExit = Math.hypot(player.x - exitDoor.x, player.y - exitDoor.y);
+        if (distExit < player.radius + 12) {
+            triggerWin();
+        }
+    }
+
+    // Atualiza barra de Stamina no HUD
+    document.getElementById('stamina-fill').style.width = `${(player.stamina / player.
